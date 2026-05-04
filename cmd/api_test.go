@@ -90,4 +90,31 @@ func TestDoAPIRequest(t *testing.T) {
 		}
 		haToken = "test-token" // Restore token
 	})
+
+	t.Run("JSON Marshal Error", func(t *testing.T) {
+		// Provide an unmarshallable payload (e.g. function or channel)
+		payload := make(chan int)
+		_, err := doAPIRequest("POST", "/api/services/light/turn_on", payload)
+		if err == nil {
+			t.Fatal("expected error for unmarshallable payload, got none")
+		}
+	})
+
+	t.Run("NewRequest Error", func(t *testing.T) {
+		// Provide an invalid HTTP method
+		_, err := doAPIRequest("INVALID METHOD \x00", "/api/states", nil)
+		if err == nil {
+			t.Fatal("expected error for invalid HTTP method, got none")
+		}
+	})
+
+	t.Run("Client Do Error", func(t *testing.T) {
+		oldURL := haURL
+		haURL = "http://127.0.0.1:0" // Connection refused
+		_, err := doAPIRequest("GET", "/api/states", nil)
+		if err == nil {
+			t.Fatal("expected error for connection refused, got none")
+		}
+		haURL = oldURL
+	})
 }
