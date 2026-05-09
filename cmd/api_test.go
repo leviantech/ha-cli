@@ -48,8 +48,8 @@ func TestDoAPIRequest(t *testing.T) {
 	defer server.Close()
 
 	// Set global variables for testing
-	haURL = server.URL
-	haToken = "test-token"
+	appConfig.URL = server.URL
+	appConfig.Token = "test-token"
 
 	t.Run("GET Request", func(t *testing.T) {
 		resp, err := doAPIRequest("GET", "/api/states/light.living_room", nil)
@@ -83,12 +83,12 @@ func TestDoAPIRequest(t *testing.T) {
 	})
 
 	t.Run("Unauthorized Request", func(t *testing.T) {
-		haToken = "invalid-token"
+		appConfig.Token = "invalid-token"
 		_, err := doAPIRequest("GET", "/api/states/light.living_room", nil)
 		if err == nil {
 			t.Fatal("expected error due to unauthorized token, got none")
 		}
-		haToken = "test-token" // Restore token
+		appConfig.Token = "test-token" // Restore token
 	})
 
 	t.Run("JSON Marshal Error", func(t *testing.T) {
@@ -109,12 +109,12 @@ func TestDoAPIRequest(t *testing.T) {
 	})
 
 	t.Run("Client Do Error", func(t *testing.T) {
-		oldURL := haURL
-		haURL = "http://127.0.0.1:0" // Connection refused
+		oldURL := appConfig.URL
+		appConfig.URL = "http://127.0.0.1:0" // Connection refused
 		_, err := doAPIRequest("GET", "/api/states", nil)
 		if err == nil {
 			t.Fatal("expected error for connection refused, got none")
 		}
-		haURL = oldURL
+		appConfig.URL = oldURL
 	})
 }

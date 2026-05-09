@@ -29,6 +29,22 @@ func init() {
 	rootCmd.AddCommand(callCmd)
 	rootCmd.AddCommand(infoCmd)
 	rootCmd.AddCommand(configCmd)
+	rootCmd.AddCommand(daemonCmd)
+}
+
+func getEntities() ([]byte, error) {
+	ef, err := entitiesFile()
+	if err == nil {
+		if isDaemonAlive() {
+			if _, statErr := os.Stat(ef); statErr == nil {
+				data, readErr := os.ReadFile(ef)
+				if readErr == nil {
+					return data, nil
+				}
+			}
+		}
+	}
+	return doAPIRequest("GET", "/api/states", nil)
 }
 
 func getDomain(entity string) string {
@@ -238,10 +254,10 @@ var listCmd = &cobra.Command{
 			filter = args[0]
 		}
 		if filter != "all" && strings.HasSuffix(filter, "s") {
-			filter = filter[:len(filter)-1] // Normalize: "lights" -> "light"
+			filter = filter[:len(filter)-1]
 		}
 
-		resp, err := doAPIRequest("GET", "/api/states", nil)
+		resp, err := getEntities()
 		if err != nil {
 			return err
 		}
@@ -275,7 +291,7 @@ var searchCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		pattern := strings.ToLower(args[0])
 
-		resp, err := doAPIRequest("GET", "/api/states", nil)
+		resp, err := getEntities()
 		if err != nil {
 			return err
 		}
@@ -356,9 +372,22 @@ var configCmd = &cobra.Command{
 			return fmt.Errorf("URL and Token cannot be empty")
 		}
 
-		config := map[string]string{
-			"url":   url,
-			"token": token,
+		fmt.Print("Enter daemon sync interval in seconds (default: 300): ")
+		intervalStr, _ := reader.ReadString('\n')
+		intervalStr = strings.TrimSpace(intervalStr)
+		interval := 300
+		if intervalStr != "" {
+			parsed, err := strconv.Atoi(intervalStr)
+			if err != nil || parsed <= 0 {
+				return fmt.Errorf("invalid interval: must be a positive integer")
+			}
+			interval = parsed
+		}
+
+		config := Config{
+			URL:      url,
+			Token:    token,
+			Interval: interval,
 		}
 
 		data, err := json.MarshalIndent(config, "", "  ")
@@ -366,12 +395,17 @@ var configCmd = &cobra.Command{
 			return err
 		}
 
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return fmt.Errorf("could not get home directory: %v", err)
+		var configDir string
+		if envDir := os.Getenv("HA_CONFIG_DIR"); envDir != "" {
+			configDir = envDir
+		} else {
+			home, err := os.UserHomeDir()
+			if err != nil {
+				return fmt.Errorf("could not get home directory: %v", err)
+			}
+			configDir = filepath.Join(home, ".ha-cli")
 		}
 
-		configDir := filepath.Join(home, ".ha-cli")
 		err = os.MkdirAll(configDir, 0755)
 		if err != nil {
 			return fmt.Errorf("failed to create config directory %s: %v", configDir, err)

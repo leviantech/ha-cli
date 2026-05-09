@@ -66,8 +66,8 @@ func TestCommandExecution(t *testing.T) {
 	server := setupMockServer()
 	defer server.Close()
 
-	haURL = server.URL
-	haToken = "test-token"
+	appConfig.URL = server.URL
+	appConfig.Token = "test-token"
 
 	tests := []struct {
 		name string
@@ -102,7 +102,7 @@ func TestCommandExecution(t *testing.T) {
 	}
 
 	// Test command error branches (e.g., bad API url)
-	haURL = "http://\x00" // Invalid URL to trigger API errors
+	appConfig.URL = "http://\x00" // Invalid URL to trigger API errors
 	for _, tt := range tests {
 		if tt.name != "info" && tt.name != "list all" && tt.name != "search" {
 			// just pick one to test API error
@@ -115,11 +115,9 @@ func TestCommandExecution(t *testing.T) {
 }
 
 func TestConfigCmd(t *testing.T) {
-	// Backup and restore stdin
 	oldStdin := os.Stdin
 	defer func() { os.Stdin = oldStdin }()
 
-	// Provide mock input: url \n token \n
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("failed to create pipe: %v", err)
@@ -129,13 +127,13 @@ func TestConfigCmd(t *testing.T) {
 	go func() {
 		w.WriteString("http://test-interactive:8123\n")
 		w.WriteString("interactive-token\n")
+		w.WriteString("60\n")
 		w.Close()
 	}()
 
-	// Change home dir so we don't overwrite real user config
 	tempHome := t.TempDir()
-	os.Setenv("HOME", tempHome) // for os.UserHomeDir to pick up, though go might not always respect it
-	// Actually os.UserHomeDir on mac relies on HOME env var mostly
+	os.Setenv("HA_CONFIG_DIR", tempHome)
+	defer os.Unsetenv("HA_CONFIG_DIR")
 
 	err = configCmd.RunE(configCmd, []string{})
 	if err != nil {
@@ -145,11 +143,13 @@ func TestConfigCmd(t *testing.T) {
 
 func TestRootPersistentPreRunE(t *testing.T) {
 	tempHome := t.TempDir()
-	os.Setenv("HOME", tempHome)
+	os.Setenv("HA_CONFIG_DIR", tempHome)
+	defer os.Unsetenv("HA_CONFIG_DIR")
 
 	os.Unsetenv("HA_URL")
 	os.Unsetenv("HA_TOKEN")
 	os.Unsetenv("HA_CONFIG")
+	appConfig = Config{}
 
 	// Should fail if missing url/token and not config/help
 	err := rootCmd.PersistentPreRunE(stateCmd, []string{})

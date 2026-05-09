@@ -9,10 +9,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	haURL   string
-	haToken string
-)
+type Config struct {
+	URL      string `json:"url"`
+	Token    string `json:"token"`
+	Interval int    `json:"interval"`
+}
+
+var appConfig Config
 
 var rootCmd = &cobra.Command{
 	Use:   "ha-cli",
@@ -24,7 +27,9 @@ var rootCmd = &cobra.Command{
 
 		home, err := os.UserHomeDir()
 		var userConfig string
-		if err == nil {
+		if configDir := os.Getenv("HA_CONFIG_DIR"); configDir != "" {
+			userConfig = filepath.Join(configDir, "config.json")
+		} else if err == nil {
 			userConfig = filepath.Join(home, ".ha-cli", "config.json")
 		}
 
@@ -41,10 +46,14 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
-		haURL = os.Getenv("HA_URL")
-		haToken = os.Getenv("HA_TOKEN")
+		if envURL := os.Getenv("HA_URL"); envURL != "" {
+			appConfig.URL = envURL
+		}
+		if envToken := os.Getenv("HA_TOKEN"); envToken != "" {
+			appConfig.Token = envToken
+		}
 
-		if haURL == "" || haToken == "" {
+		if appConfig.URL == "" || appConfig.Token == "" {
 			return fmt.Errorf("set HA_URL and HA_TOKEN environment variables, or run 'ha-cli config'")
 		}
 
@@ -67,18 +76,10 @@ func Execute() {
 func loadConfig(path string) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return // Ignore if config file doesn't exist or can't be read
-	}
-
-	var config map[string]interface{}
-	if err := json.Unmarshal(data, &config); err != nil {
 		return
 	}
-
-	if url, ok := config["url"].(string); ok && os.Getenv("HA_URL") == "" {
-		os.Setenv("HA_URL", url)
-	}
-	if token, ok := config["token"].(string); ok && os.Getenv("HA_TOKEN") == "" {
-		os.Setenv("HA_TOKEN", token)
+	json.Unmarshal(data, &appConfig)
+	if appConfig.Interval <= 0 {
+		appConfig.Interval = 300
 	}
 }

@@ -9,13 +9,14 @@ A powerful, fast, Go-based Command Line Interface to interact with your Home Ass
 - **Full Control:** Control lights, switches, scenes, scripts, automations, and climate devices.
 - **Agent Skill Ready:** Designed to be easily integratable with AI Agents (OpenClaw, Hermes) via `agentskills.io` standard.
 - **Search & Query:** Quickly query the states of any entity or search for entity IDs globally.
+- **Background Daemon:** Run a background sync daemon that periodically caches entity states locally for instant, offline-capable queries.
 
 ## Installation
 
 You can install `ha-cli` globally using `go install`:
 
 ```bash
-go install github.com/reyhanfahlevi/ha-cli@latest
+go install github.com/leviantech/ha-cli@latest
 ```
 
 *Ensure your `$(go env GOPATH)/bin` is added to your system `$PATH`.*
@@ -63,6 +64,13 @@ Below are the available commands you can run with `ha-cli`:
 - `ha-cli call <domain> <service> [json_data]`: Make a raw service call to Home Assistant with optional JSON payload data.
 - `ha-cli info`: Fetch basic instance info from Home Assistant.
 
+### Daemon
+The daemon runs in the background and periodically syncs entity states to `~/.ha-cli/entities.json`. When the daemon is active, `list` and `search` commands read from this local cache instead of hitting the API, making them significantly faster.
+
+- `ha-cli daemon start [--interval=<seconds>]`: Start the background sync daemon (default interval: 300s / 5 minutes).
+- `ha-cli daemon stop`: Stop the running daemon.
+- `ha-cli daemon status`: Check if the daemon is currently running.
+
 ## Examples
 
 ```bash
@@ -77,6 +85,15 @@ ha-cli search temp
 
 # Call a custom service payload
 ha-cli call light turn_on '{"entity_id": "light.bedroom", "color_name": "red"}'
+
+# Start the daemon to sync entities every 60 seconds
+ha-cli daemon start --interval=60
+
+# Check daemon status
+ha-cli daemon status
+
+# Stop the daemon
+ha-cli daemon stop
 ```
 
 ## Agent Skill (OpenClaw / Hermes)

@@ -10,7 +10,7 @@ import (
 )
 
 func doAPIRequest(method, endpoint string, body interface{}) ([]byte, error) {
-	url := strings.TrimRight(haURL, "/") + endpoint
+	url := strings.TrimRight(appConfig.URL, "/") + endpoint
 
 	var reqBody io.Reader
 	if body != nil {
@@ -31,7 +31,7 @@ func doAPIRequest(method, endpoint string, body interface{}) ([]byte, error) {
 		return nil, err
 	}
 
-	req.Header.Set("Authorization", "Bearer "+haToken)
+	req.Header.Set("Authorization", "Bearer "+appConfig.Token)
 	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{}
