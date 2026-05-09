@@ -11,7 +11,7 @@ author: user
 This skill allows the agent to control a Home Assistant instance via a local CLI tool named `ha-cli`.
 
 ## Setup
-Ensure that the `ha-cli` executable is accessible in your environment (it can be installed via `go install github.com/reyhanfahlevi/ha-cli@latest`).
+Ensure that the `ha-cli` executable is accessible in your environment (it can be installed via `go install github.com/leviantech/ha-cli@latest`).
 The environment variables `HA_URL` and `HA_TOKEN` must be set. They can be provided via standard environment variables or configured interactively using the `ha-cli config` command which saves them to `~/.ha-cli/config.json`.
 
 ### Getting a Long-Lived Access Token
