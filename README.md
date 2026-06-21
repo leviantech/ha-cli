@@ -55,6 +55,10 @@ Below are the available commands you can run with `ha-cli`:
 - `ha-cli toggle <entity_id>`: Toggle an entity's power state.
 - `ha-cli climate <entity_id> <temp>`: Set the target temperature of a climate device.
 
+### Camera
+- `ha-cli camera list`: List all camera entities.
+- `ha-cli camera <entity_id> [output_file]`: Capture a snapshot from a camera entity and save it to a file (default: `<entity_id>.jpg`).
+
 ### Scenes, Scripts, and Automations
 - `ha-cli scene <name>`: Activate a scene.
 - `ha-cli script <name>`: Execute a script.
@@ -94,6 +98,10 @@ ha-cli daemon status
 
 # Stop the daemon
 ha-cli daemon stop
+
+# List cameras and capture a snapshot
+ha-cli camera list
+ha-cli camera front_door garden_snapshot.jpg
 ```
 
 ## Agent Skill (OpenClaw / Hermes)
