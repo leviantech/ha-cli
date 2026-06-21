@@ -30,6 +30,7 @@ func init() {
 	rootCmd.AddCommand(callCmd)
 	rootCmd.AddCommand(infoCmd)
 	rootCmd.AddCommand(configCmd)
+	configCmd.AddCommand(configSetCmd)
 	rootCmd.AddCommand(daemonCmd)
 }
 
@@ -274,18 +275,35 @@ var cameraCmd = &cobra.Command{
 		}
 
 		entity := args[0]
-		if !strings.HasPrefix(entity, "camera.") {
-			entity = "camera." + entity
+		useFrigate := appConfig.FrigateURL != ""
+
+		var img []byte
+		var err error
+
+		if useFrigate {
+			cameraName := strings.TrimPrefix(entity, "camera.")
+			img, err = doFrigateCameraRequest(cameraName)
+		} else {
+			if !strings.HasPrefix(entity, "camera.") {
+				entity = "camera." + entity
+			}
+			img, err = doCameraRequest(entity)
 		}
 
-		img, err := doCameraRequest(entity)
 		if err != nil {
 			return err
 		}
 
-		outFile := entity + ".jpg"
+		var outFile string
 		if len(args) == 2 {
 			outFile = args[1]
+		} else {
+			baseName := strings.TrimPrefix(entity, "camera.")
+			if useFrigate {
+				outFile = "fg." + baseName + ".jpg"
+			} else {
+				outFile = "ha." + baseName + ".jpg"
+			}
 		}
 
 		if err := os.WriteFile(outFile, img, 0644); err != nil {
@@ -407,6 +425,20 @@ var infoCmd = &cobra.Command{
 	},
 }
 
+func getConfigPaths() (string, string, error) {
+	var configDir string
+	if envDir := os.Getenv("HA_CONFIG_DIR"); envDir != "" {
+		configDir = envDir
+	} else {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", "", fmt.Errorf("could not get home directory: %v", err)
+		}
+		configDir = filepath.Join(home, ".ha-cli")
+	}
+	return configDir, filepath.Join(configDir, "config.json"), nil
+}
+
 var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "Setup configuration interactively",
@@ -420,6 +452,10 @@ var configCmd = &cobra.Command{
 		fmt.Print("Enter Home Assistant Long-Lived Access Token: ")
 		token, _ := reader.ReadString('\n')
 		token = strings.TrimSpace(token)
+
+		fmt.Print("Enter Frigate URL (optional, e.g. http://192.168.1.100:5000): ")
+		frigateURL, _ := reader.ReadString('\n')
+		frigateURL = strings.TrimSpace(frigateURL)
 
 		if url == "" || token == "" {
 			return fmt.Errorf("URL and Token cannot be empty")
@@ -438,9 +474,10 @@ var configCmd = &cobra.Command{
 		}
 
 		config := Config{
-			URL:      url,
-			Token:    token,
-			Interval: interval,
+			URL:        url,
+			Token:      token,
+			Interval:   interval,
+			FrigateURL: frigateURL,
 		}
 
 		data, err := json.MarshalIndent(config, "", "  ")
@@ -448,15 +485,9 @@ var configCmd = &cobra.Command{
 			return err
 		}
 
-		var configDir string
-		if envDir := os.Getenv("HA_CONFIG_DIR"); envDir != "" {
-			configDir = envDir
-		} else {
-			home, err := os.UserHomeDir()
-			if err != nil {
-				return fmt.Errorf("could not get home directory: %v", err)
-			}
-			configDir = filepath.Join(home, ".ha-cli")
+		configDir, configPath, err := getConfigPaths()
+		if err != nil {
+			return err
 		}
 
 		err = os.MkdirAll(configDir, 0755)
@@ -464,13 +495,87 @@ var configCmd = &cobra.Command{
 			return fmt.Errorf("failed to create config directory %s: %v", configDir, err)
 		}
 
-		configPath := filepath.Join(configDir, "config.json")
 		err = os.WriteFile(configPath, data, 0600)
 		if err != nil {
 			return fmt.Errorf("failed to write config to %s: %v", configPath, err)
 		}
 
 		fmt.Printf("✓ Configuration saved to %s\n", configPath)
+		return nil
+	},
+}
+
+var configSetCmd = &cobra.Command{
+	Use:   "set <key> <value>",
+	Short: "Set a specific configuration key",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		validKeys := []string{"url", "token", "interval", "frigate_url"}
+
+		if len(args) == 0 {
+			return fmt.Errorf("missing config key. Available keys: %s", strings.Join(validKeys, ", "))
+		}
+
+		key := strings.ToLower(args[0])
+
+		isValid := false
+		for _, k := range validKeys {
+			if key == k {
+				isValid = true
+				break
+			}
+		}
+
+		if !isValid {
+			return fmt.Errorf("invalid config key '%s'. Available keys: %s", key, strings.Join(validKeys, ", "))
+		}
+
+		if len(args) < 2 {
+			return fmt.Errorf("missing value for key '%s'", key)
+		}
+
+		value := args[1]
+
+		configDir, configPath, err := getConfigPaths()
+		if err != nil {
+			return err
+		}
+
+		var config Config
+		if data, err := os.ReadFile(configPath); err == nil {
+			json.Unmarshal(data, &config)
+		}
+
+		switch key {
+		case "url":
+			config.URL = value
+		case "token":
+			config.Token = value
+		case "interval":
+			val, err := strconv.Atoi(value)
+			if err != nil || val <= 0 {
+				return fmt.Errorf("invalid interval: must be a positive integer")
+			}
+			config.Interval = val
+		case "frigate_url":
+			config.FrigateURL = value
+		}
+
+		err = os.MkdirAll(configDir, 0755)
+		if err != nil {
+			return fmt.Errorf("failed to create config directory: %v", err)
+		}
+
+		data, err := json.MarshalIndent(config, "", "  ")
+		if err != nil {
+			return err
+		}
+
+		err = os.WriteFile(configPath, data, 0600)
+		if err != nil {
+			return fmt.Errorf("failed to write config: %v", err)
+		}
+
+		fmt.Printf("✓ Configuration '%s' updated\n", key)
 		return nil
 	},
 }

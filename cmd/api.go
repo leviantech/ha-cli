@@ -77,3 +77,29 @@ func doCameraRequest(entity string) ([]byte, error) {
 
 	return io.ReadAll(resp.Body)
 }
+
+func doFrigateCameraRequest(camera string) ([]byte, error) {
+	if appConfig.FrigateURL == "" {
+		return nil, fmt.Errorf("Frigate URL is not configured. Set FRIGATE_URL or run 'ha-cli config'")
+	}
+	url := strings.TrimRight(appConfig.FrigateURL, "/") + "/api/" + camera + "/latest.jpg?quality=100"
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("API error: status %d, body: %s", resp.StatusCode, string(body))
+	}
+
+	return io.ReadAll(resp.Body)
+}

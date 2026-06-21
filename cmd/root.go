@@ -10,9 +10,10 @@ import (
 )
 
 type Config struct {
-	URL      string `json:"url"`
-	Token    string `json:"token"`
-	Interval int    `json:"interval"`
+	URL        string `json:"url"`
+	Token      string `json:"token"`
+	Interval   int    `json:"interval"`
+	FrigateURL string `json:"frigate_url,omitempty"`
 }
 
 var appConfig Config
@@ -21,7 +22,7 @@ var rootCmd = &cobra.Command{
 	Use:   "ha-cli",
 	Short: "Home Assistant CLI wrapper",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		if cmd.Name() == "config" || cmd.Name() == "help" {
+		if cmd.Name() == "config" || cmd.Name() == "help" || (cmd.Parent() != nil && cmd.Parent().Name() == "config") {
 			return nil
 		}
 
@@ -51,6 +52,9 @@ var rootCmd = &cobra.Command{
 		}
 		if envToken := os.Getenv("HA_TOKEN"); envToken != "" {
 			appConfig.Token = envToken
+		}
+		if envFrigateURL := os.Getenv("FRIGATE_URL"); envFrigateURL != "" {
+			appConfig.FrigateURL = envFrigateURL
 		}
 
 		if appConfig.URL == "" || appConfig.Token == "" {

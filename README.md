@@ -30,11 +30,19 @@ The easiest way to configure this is via the interactive setup:
 ```bash
 ha-cli config
 ```
-This will prompt you for your **URL** (e.g., `http://192.168.1.100:8123`) and **Token**, securely saving them locally to `~/.ha-cli/config.json`. 
+This will prompt you for your **URL** (e.g., `http://192.168.1.100:8123`), **Token**, and optionally **Frigate URL**, securely saving them locally to `~/.ha-cli/config.json`. 
+
+You can also set individual configuration values directly using:
+
+```bash
+ha-cli config set <key> <value>
+# Valid keys: url, token, interval, frigate_url
+ha-cli config set frigate_url http://192.168.1.100:5000
+```
 
 ### Alternative Configuration Methods
 If you prefer not to use the interactive setup, `ha-cli` will automatically fallback to reading from:
-1. Environment variables (`HA_URL` and `HA_TOKEN`).
+1. Environment variables (`HA_URL`, `HA_TOKEN`, and `FRIGATE_URL`).
 2. The legacy JSON config file located at `~/.config/home-assistant/config.json`.
 
 *(Note: If `~/.ha-cli/config.json` exists, it will take priority over environment variables.)*
@@ -57,7 +65,9 @@ Below are the available commands you can run with `ha-cli`:
 
 ### Camera
 - `ha-cli camera list`: List all camera entities.
-- `ha-cli camera <entity_id> [output_file]`: Capture a snapshot from a camera entity and save it to a file (default: `<entity_id>.jpg`).
+- `ha-cli camera <entity_id> [output_file]`: Capture a snapshot from a camera entity.
+  - If a **Frigate URL** is configured, it will automatically fetch a high-quality snapshot directly from the Frigate API. Otherwise, it falls back to the Home Assistant proxy API.
+  - If no `[output_file]` is provided, the default filename will be prefixed with `fg.` (Frigate) or `ha.` (Home Assistant) based on the fetch source (e.g., `fg.front_door.jpg` or `ha.front_door.jpg`).
 
 ### Scenes, Scripts, and Automations
 - `ha-cli scene <name>`: Activate a scene.
