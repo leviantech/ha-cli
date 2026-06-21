@@ -24,6 +24,7 @@ func init() {
 	rootCmd.AddCommand(scriptCmd)
 	rootCmd.AddCommand(automationCmd)
 	rootCmd.AddCommand(climateCmd)
+	rootCmd.AddCommand(cameraCmd)
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(searchCmd)
 	rootCmd.AddCommand(callCmd)
@@ -240,6 +241,58 @@ var climateCmd = &cobra.Command{
 			return err
 		}
 		fmt.Printf("✓ %s set to %v°\n", entity, temp)
+		return nil
+	},
+}
+
+var cameraCmd = &cobra.Command{
+	Use:     "camera <entity_id|list> [output_file]",
+	Aliases: []string{"snapshot", "snap"},
+	Short:   "Capture image from camera entity or list cameras",
+	Args:    cobra.RangeArgs(1, 2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if args[0] == "list" {
+			resp, err := getEntities()
+			if err != nil {
+				return err
+			}
+
+			var states []struct {
+				EntityID string `json:"entity_id"`
+				State    string `json:"state"`
+			}
+			if err := json.Unmarshal(resp, &states); err != nil {
+				return err
+			}
+
+			for _, s := range states {
+				if strings.HasPrefix(s.EntityID, "camera.") {
+					fmt.Printf("%s: %s\n", s.EntityID, s.State)
+				}
+			}
+			return nil
+		}
+
+		entity := args[0]
+		if !strings.HasPrefix(entity, "camera.") {
+			entity = "camera." + entity
+		}
+
+		img, err := doCameraRequest(entity)
+		if err != nil {
+			return err
+		}
+
+		outFile := entity + ".jpg"
+		if len(args) == 2 {
+			outFile = args[1]
+		}
+
+		if err := os.WriteFile(outFile, img, 0644); err != nil {
+			return fmt.Errorf("failed to write image: %v", err)
+		}
+
+		fmt.Printf("✓ Image saved to %s (%d bytes)\n", outFile, len(img))
 		return nil
 	},
 }

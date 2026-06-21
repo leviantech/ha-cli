@@ -37,6 +37,8 @@ You can execute the `ha-cli` program using shell commands to perform various sma
 - **List entities:** `ha-cli list [domain]` (e.g., `ha-cli list lights`, `ha-cli list all`)
 - **Search entities:** `ha-cli search <pattern>`
 - **Call a generic service:** `ha-cli call <domain> <service> [json_data]`
+- **Capture camera image:** `ha-cli camera <entity_id> [output_file]`
+- **List camera entities:** `ha-cli camera list`
 - **Get HA instance info:** `ha-cli info`
 - **Configure interactively:** `ha-cli config`
 
@@ -46,6 +48,7 @@ You can execute the `ha-cli` program using shell commands to perform various sma
 - Activate a scene: `ha-cli scene movie_night`
 - Get state of front door: `ha-cli state binary_sensor.front_door`
 - Search for a thermostat: `ha-cli search thermostat`
+- Capture from a camera: `ha-cli camera front_door snapshot.jpg`
 
 ## Troubleshooting
 If you encounter errors while using the CLI:

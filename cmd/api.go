@@ -52,3 +52,28 @@ func doAPIRequest(method, endpoint string, body interface{}) ([]byte, error) {
 
 	return respBody, nil
 }
+
+func doCameraRequest(entity string) ([]byte, error) {
+	url := strings.TrimRight(appConfig.URL, "/") + "/api/camera_proxy/" + entity
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+appConfig.Token)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("API error: status %d, body: %s", resp.StatusCode, string(body))
+	}
+
+	return io.ReadAll(resp.Body)
+}
